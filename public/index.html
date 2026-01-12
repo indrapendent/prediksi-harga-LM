@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediksi Emas AI</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        h1 { color: #d4af37; } /* Warna Emas */
+        .price { font-size: 2em; font-weight: bold; }
+        .signal { margin-top: 20px; padding: 10px; color: white; border-radius: 5px; }
+        .buy { background-color: #28a745; }
+        .sell { background-color: #dc3545; }
+        .hold { background-color: #6c757d; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Gold Price Predictor</h1>
+        <p>Harga Emas Saat Ini (USD):</p>
+        <div id="current" class="price">Loading...</div>
+        
+        <hr>
+        
+        <p>Prediksi Harga Besok:</p>
+        <div id="prediction" class="price" style="color: #555;">...</div>
+        
+        <div id="signal-box" class="signal hold">Menunggu Analisis AI...</div>
+    </div>
+
+    <script>
+        fetch('/api/predict')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('current').innerText = `$${data.current_price}`;
+                document.getElementById('prediction').innerText = `$${data.predicted_next_price}`;
+                
+                const signalBox = document.getElementById('signal-box');
+                signalBox.innerText = data.recommendation;
+                
+                if(data.recommendation.includes("BELI")) {
+                    signalBox.className = "signal buy";
+                } else if (data.recommendation.includes("JUAL")) {
+                    signalBox.className = "signal sell";
+                } else {
+                    signalBox.className = "signal hold";
+                }
+            })
+            .catch(err => {
+                document.getElementById('signal-box').innerText = "Error mengambil data.";
+                console.error(err);
+            });
+    </script>
+</body>
+</html>
