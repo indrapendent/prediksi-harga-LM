@@ -3,23 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prediksi Emas AI</title>
+    <title>Prediksi Emas AI (IDR)</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        h1 { color: #d4af37; } /* Warna Emas */
-        .price { font-size: 2em; font-weight: bold; }
+        h1 { color: #d4af37; margin-bottom: 5px; } 
+        h2 { font-size: 14px; color: #777; margin-top: 0; font-weight: normal; }
+        .price { font-size: 2em; font-weight: bold; margin: 10px 0; }
         .signal { margin-top: 20px; padding: 10px; color: white; border-radius: 5px; }
         .buy { background-color: #28a745; }
         .sell { background-color: #dc3545; }
         .hold { background-color: #6c757d; }
+        .footer { margin-top: 20px; font-size: 12px; color: #aaa; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h1>Gold Price Predictor</h1>
-        <p>Harga Emas Saat Ini (USD):</p>
+        <h2>Harga Logam Mulia (Antam/Spot) per Gram</h2>
+        
+        <p>Harga Saat Ini:</p>
         <div id="current" class="price">Loading...</div>
         
         <hr>
@@ -28,17 +32,25 @@
         <div id="prediction" class="price" style="color: #555;">...</div>
         
         <div id="signal-box" class="signal hold">Menunggu Analisis AI...</div>
+        
+        <div class="footer">
+            *Estimasi berdasarkan harga Spot Dunia & Kurs IDR.
+        </div>
     </div>
 
     <script>
         fetch('/api/predict')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('current').innerText = `$${data.current_price}`;
-                document.getElementById('prediction').innerText = `$${data.predicted_next_price}`;
+                if(data.error) {
+                    throw new Error(data.error);
+                }
+                // Data sudah diformat dari server (misal: 1.250.000)
+                document.getElementById('current').innerText = `Rp ${data.current_price}`;
+                document.getElementById('prediction').innerText = `Rp ${data.predicted_next_price}`;
                 
                 const signalBox = document.getElementById('signal-box');
-                signalBox.innerText = data.recommendation;
+                signalBox.innerText = `${data.recommendation} (${data.change_percent}%)`;
                 
                 if(data.recommendation.includes("BELI")) {
                     signalBox.className = "signal buy";
@@ -49,7 +61,9 @@
                 }
             })
             .catch(err => {
-                document.getElementById('signal-box').innerText = "Error mengambil data.";
+                document.getElementById('signal-box').innerText = "Gagal Mengambil Data.";
+                document.getElementById('current').innerText = "Error";
+                document.getElementById('current').style.color = "red";
                 console.error(err);
             });
     </script>
