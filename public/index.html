@@ -1,66 +1,28 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prediksi Emas Antam AI</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 50px; background: #fafafa; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 400px; margin: auto; }
-        h1 { color: #b8860b; margin-bottom: 5px; } 
-        h2 { font-size: 14px; color: #999; margin-top: 0; font-weight: normal; letter-spacing: 1px; }
-        .price { font-size: 2.5em; font-weight: bold; margin: 15px 0; color: #333; }
-        .signal { margin-top: 25px; padding: 12px; color: white; border-radius: 8px; font-weight: bold; letter-spacing: 0.5px;}
-        .buy { background-color: #27ae60; }
-        .sell { background-color: #c0392b; }
-        .hold { background-color: #7f8c8d; }
-        .footer { margin-top: 30px; font-size: 11px; color: #bbb; border-top: 1px solid #eee; padding-top: 10px;}
-        .status-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; background: #eef; color: #55a; margin-bottom: 15px;}
-    </style>
-</head>
-<body>
-
-    <div class="card">
-        <h1>Antam Price Predictor</h1>
-        <h2>HARGA EMAS BATANGAN 1 GRAM</h2>
-        
-        <div id="status-badge" class="status-pill">Connecting...</div>
-
-        <p style="margin-bottom:0; color:#777;">Harga Dasar Hari Ini:</p>
-        <div id="current" class="price">Loading...</div>
-        
-        <div style="display: flex; justify-content: space-between; padding: 0 20px; color: #777; font-size: 0.9em;">
-            <span>Prediksi Besok:</span>
-            <span id="prediction" style="font-weight: bold; color: #b8860b;">...</span>
-        </div>
-        
-        <div id="signal-box" class="signal hold">Menganalisis Data...</div>
-        
-        <div class="footer">
-            Data diambil langsung dari situs resmi logammulia.com
-        </div>
-    </div>
-
-    <script>
+<script>
         fetch('/api/predict')
             .then(response => {
-                if (!response.ok) throw new Error("Server Error");
+                // Cek jika server mengirim error 500
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
                 return response.json();
             })
             .then(data => {
+                if(data.error) throw new Error(data.error);
+
                 document.getElementById('current').innerText = `Rp ${data.current_price}`;
                 document.getElementById('prediction').innerText = `Rp ${data.predicted_next_price}`;
                 
                 const statusBadge = document.getElementById('status-badge');
                 statusBadge.innerText = data.status;
                 
-                // Ubah warna badge status
-                if(data.status.includes("Demo")) {
-                    statusBadge.style.background = "#fee";
-                    statusBadge.style.color = "#a55";
+                // Logika Warna Badge Status
+                if(data.status.includes("Simulasi")) {
+                    statusBadge.style.background = "#fff3cd"; // Kuning/Oranye
+                    statusBadge.style.color = "#856404";
                 } else {
-                    statusBadge.style.background = "#eef";
-                    statusBadge.style.color = "#55a";
+                    statusBadge.style.background = "#d4edda"; // Hijau
+                    statusBadge.style.color = "#155724";
                 }
 
                 const signalBox = document.getElementById('signal-box');
@@ -75,11 +37,11 @@
                 }
             })
             .catch(err => {
-                console.error(err);
+                console.error("Fetch Error:", err);
                 document.getElementById('current').innerText = "Gagal Muat";
-                document.getElementById('current').style.fontSize = "1.5em";
-                document.getElementById('status-badge').innerText = "Koneksi Error";
-                document.getElementById('status-badge').style.background = "#fee";
+                document.getElementById('status-badge').innerText = "Server Error / Timeout";
+                document.getElementById('status-badge').style.background = "#f8d7da";
+                document.getElementById('status-badge').style.color = "#721c24";
             });
     </script>
 </body>
