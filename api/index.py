@@ -1,64 +1,59 @@
 from flask import Flask, jsonify
-import yfinance as yf
 import requests
-import appdirs as ad
-
-# --- 1. FIX CACHE READ-ONLY ---
-ad.user_cache_dir = lambda *args: "/tmp"
+import json
 
 app = Flask(__name__)
 
-# --- 2. MODEL WEIGHTS ---
+# --- HARDCODED MODEL ---
 MODEL_SLOPE = 1.0031972
 MODEL_INTERCEPT = -5.01195503
 
-def get_live_data():
-    """
-    Mencoba mengambil data dengan penyamaran browser.
-    """
+def get_yahoo_price_manual(ticker):
     try:
-        # Buat sesi palsu agar dikira Browser Chrome (Bukan Bot Vercel)
-        session = requests.Session()
-        session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        })
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+        
+        # TIMEOUT DIPERCEPAT JADI 3 DETIK (Agar tidak dibunuh Vercel)
+        response = requests.get(url, headers=headers, timeout=3)
+        data = response.json()
+        
+        result = data['chart']['result'][0]
+        quote = result['indicators']['quote'][0]
+        close_prices = quote['close']
+        
+        last_price = None
+        for price in reversed(close_prices):
+            if price is not None:
+                last_price = float(price)
+                break
+                
+        return last_price
 
-        # Gunakan sesi tersebut di yfinance
-        gold = yf.Ticker("GC=F", session=session)
-        kurs = yf.Ticker("IDR=X", session=session)
-
-        # Ambil history (gunakan '1mo' agar lebih aman datanya ada)
-        gold_hist = gold.history(period="5d")
-        kurs_hist = kurs.history(period="5d")
-
-        if gold_hist.empty or kurs_hist.empty:
-            raise Exception("Data Yahoo Finance kosong")
-
-        return float(gold_hist['Close'].iloc[-1]), float(kurs_hist['Close'].iloc[-1])
-    
     except Exception as e:
-        print(f"GAGAL AMBIL LIVE DATA: {e}")
-        return None, None
+        print(f"Gagal ambil data {ticker}: {e}")
+        return None
 
 @app.route('/api/predict')
 def predict():
     try:
-        # Coba ambil data live
-        price_gold_usd, price_kurs_idr = get_live_data()
+        # 1. Coba ambil data (Maksimal 3 detik)
+        price_gold_usd = get_yahoo_price_manual("GC=F")
+        price_kurs_idr = get_yahoo_price_manual("IDR=X")
         
-        is_demo_mode = False
+        status_msg = "Data Live (Real-time)"
         
-        # --- 3. FALLBACK MECHANISM (DATA CADANGAN) ---
-        # Jika Yahoo memblokir Vercel, kita pakai data statis terakhir
-        # agar aplikasi tetap jalan (tidak crash) saat presentasi
+        # 2. FALLBACK MODE (Jika Yahoo lemot/blokir, pakai data ini)
         if price_gold_usd is None or price_kurs_idr is None:
-            is_demo_mode = True
-            price_gold_usd = 2050.00  # Asumsi harga emas dunia $2050
-            price_kurs_idr = 15500.0  # Asumsi kurs Rp 15.500
+            price_gold_usd = 2665.00  # Harga Emas Estimasi
+            price_kurs_idr = 15900.0  # Kurs Estimasi
+            status_msg = "Mode Demo (Yahoo API Limit)"
 
-        # --- PERHITUNGAN ---
+        # 3. Hitung Prediksi
         predicted_usd = (price_gold_usd * MODEL_SLOPE) + MODEL_INTERCEPT
         
+        # Konversi ke Rupiah/Gram
         gram_conversion = 31.1035
         price_idr_gram_now = (price_gold_usd / gram_conversion) * price_kurs_idr
         price_idr_gram_next = (predicted_usd / gram_conversion) * price_kurs_idr
@@ -67,17 +62,14 @@ def predict():
         change = price_idr_gram_next - price_idr_gram_now
         percent_change = (change / price_idr_gram_now) * 100
         
-        signal = "TAHAN (Netral)"
+        signal = "TAHAN"
         if percent_change > 0.5: 
-            signal = "BELI (Potensi Naik)"
+            signal = "BELI"
         elif percent_change < -0.5:
-            signal = "JUAL (Potensi Turun)"
+            signal = "JUAL"
 
-        # Tambahkan label jika ini data demo
-        status_msg = "Data Live (Real-time)"
-        if is_demo_mode:
-            status_msg = "Mode Demo (Koneksi Yahoo Dibatasi)"
-            signal += " [DEMO]"
+        if "Demo" in status_msg:
+            signal += " (Data Demo)"
 
         return jsonify({
             "current_price": "{:,.0f}".format(price_idr_gram_now).replace(',', '.'),

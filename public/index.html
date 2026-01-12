@@ -32,31 +32,32 @@
         <div id="prediction" class="price" style="color: #555;">...</div>
         
         <div id="signal-box" class="signal hold">Menunggu Analisis AI...</div>
-        
         <p id="status" style="font-size: 12px; margin-top: 10px; color: #555;"></p>
-
+        
         <div class="footer">
             *Estimasi berdasarkan harga Spot Dunia & Kurs IDR.
         </div>
     </div>
 
     <script>
-        fetch('/api/predict')
-            .then(response => response.json())
+        // Timeout Frontend 8 detik (jaga-jaga)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        fetch('/api/predict', { signal: controller.signal })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server Error: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                if(data.error) throw new Error(data.error);
-                
                 document.getElementById('current').innerText = `Rp ${data.current_price}`;
                 document.getElementById('prediction').innerText = `Rp ${data.predicted_next_price}`;
                 
-                // Update Status (Live vs Demo)
                 const statusElem = document.getElementById('status');
                 statusElem.innerText = data.status;
-                if(data.status.includes("Demo")) {
-                    statusElem.style.color = "red";
-                } else {
-                    statusElem.style.color = "green";
-                }
+                statusElem.style.color = data.status.includes("Demo") ? "orange" : "green";
 
                 const signalBox = document.getElementById('signal-box');
                 signalBox.innerText = `${data.recommendation} (${data.change_percent}%)`;
@@ -69,7 +70,14 @@
                     signalBox.className = "signal hold";
                 }
             })
-            // ... kode error handling ...
+            .catch(err => {
+                console.error(err);
+                document.getElementById('current').innerText = "Koneksi Timeout";
+                document.getElementById('current').style.fontSize = "1.2em";
+                document.getElementById('current').style.color = "red";
+                document.getElementById('signal-box').innerText = "Coba refresh halaman...";
+                document.getElementById('signal-box').className = "signal hold";
+            });
     </script>
 </body>
 </html>
